@@ -12,11 +12,13 @@ from sklearn.metrics import (
 )
 
 # ----------------------------
-# Load model artifacts
+# Load Artifacts
 # ----------------------------
 model = pickle.load(open("model.pkl", "rb"))
 scaler = pickle.load(open("scaler.pkl", "rb"))
 feature_names = pickle.load(open("features.pkl", "rb"))
+X_test = pickle.load(open("X_test.pkl", "rb"))
+y_test = pickle.load(open("y_test.pkl", "rb"))
 
 st.set_page_config(page_title="Telco Customer Churn", layout="centered")
 
@@ -24,7 +26,7 @@ st.title("📊 Telco Customer Churn Prediction System")
 st.write("Predict whether a customer is likely to churn.")
 
 # ----------------------------
-# INPUTS
+# USER INPUT
 # ----------------------------
 tenure = st.number_input("Tenure (Months)", 0, 72, 12)
 monthly_charges = st.number_input("Monthly Charges", 0.0, 200.0, 70.0)
@@ -42,12 +44,8 @@ payment_method = st.selectbox(
      "Bank transfer (automatic)", "Credit card (automatic)"]
 )
 
-# Decision Threshold
 threshold = st.slider("Decision Threshold", 0.0, 1.0, 0.5, 0.01)
 
-# ----------------------------
-# PREDICTION
-# ----------------------------
 if st.button("Predict Churn Risk"):
 
     input_dict = {
@@ -80,46 +78,19 @@ if st.button("Predict Churn Risk"):
     st.info(f"Churn Probability: {probability*100:.2f}%")
 
 # ----------------------------
-# MODEL PERFORMANCE SECTION
+# MODEL EVALUATION
 # ----------------------------
 st.markdown("---")
 st.subheader("📈 Model Performance Analysis")
 
 if st.button("Show Model Evaluation"):
 
-    df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
-    df.drop("customerID", axis=1, inplace=True)
-    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-    df.dropna(inplace=True)
-    df["Churn"] = df["Churn"].map({"Yes": 1, "No": 0})
-
-    selected_features = [
-        "tenure",
-        "MonthlyCharges",
-        "TotalCharges",
-        "Contract",
-        "InternetService",
-        "PaymentMethod"
-    ]
-
-    X = df[selected_features]
-    y = df["Churn"]
-
-    X = pd.get_dummies(X, drop_first=True)
-
-    for col in feature_names:
-        if col not in X:
-            X[col] = 0
-
-    X = X[feature_names]
-    X_scaled = scaler.transform(X)
-
-    y_prob = model.predict_proba(X_scaled)[:, 1]
+    y_prob = model.predict_proba(X_test)[:, 1]
     y_pred = (y_prob >= threshold).astype(int)
 
-    # -------- ROC Curve --------
-    fpr, tpr, _ = roc_curve(y, y_prob)
-    auc_score = roc_auc_score(y, y_prob)
+    # ROC
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    auc_score = roc_auc_score(y_test, y_prob)
 
     fig_roc = go.Figure()
     fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC Curve'))
@@ -127,34 +98,30 @@ if st.button("Show Model Evaluation"):
                                  mode='lines',
                                  name='Random',
                                  line=dict(dash='dash')))
-
     fig_roc.update_layout(
         title=f"ROC Curve (AUC = {auc_score:.2f})",
         xaxis_title="False Positive Rate",
         yaxis_title="True Positive Rate"
     )
-
     st.plotly_chart(fig_roc)
 
-    # -------- Precision-Recall Curve --------
-    precision, recall, _ = precision_recall_curve(y, y_prob)
-    ap_score = average_precision_score(y, y_prob)
+    # Precision-Recall
+    precision, recall, _ = precision_recall_curve(y_test, y_prob)
+    ap_score = average_precision_score(y_test, y_prob)
 
     fig_pr = go.Figure()
     fig_pr.add_trace(go.Scatter(x=recall, y=precision,
                                 mode='lines',
                                 name='Precision-Recall'))
-
     fig_pr.update_layout(
         title=f"Precision-Recall Curve (AP = {ap_score:.2f})",
         xaxis_title="Recall",
         yaxis_title="Precision"
     )
-
     st.plotly_chart(fig_pr)
 
-    # -------- Confusion Matrix --------
-    cm = confusion_matrix(y, y_pred)
+    # Confusion Matrix
+    cm = confusion_matrix(y_test, y_pred)
 
     fig_cm = go.Figure(data=go.Heatmap(
         z=cm,
@@ -180,8 +147,6 @@ if hasattr(model, "feature_importances_"):
     }).sort_values(by="Importance", ascending=False)
 
     st.dataframe(importance_df.head(10))
-else:
-    st.write("Feature importance not available for this model.")
 
 # ----------------------------
 # BUSINESS INSIGHTS
@@ -190,9 +155,8 @@ st.markdown("---")
 st.subheader("💼 Business Insights")
 
 st.write("""
-- Customers with month-to-month contracts show higher churn risk.
+- Month-to-month contract customers are high churn risk.
+- Short tenure customers churn more frequently.
 - Higher monthly charges increase churn probability.
-- Low tenure customers are more likely to churn.
-- Fiber optic customers tend to churn more than DSL users.
-- Adjusting decision threshold allows business to trade-off between recall and precision.
+- Decision threshold allows business trade-off between recall and precision.
 """)
