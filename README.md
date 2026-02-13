@@ -60,3 +60,4 @@ python -m streamlit run app.py
 
 ## 📁 Project Structure
 
+Deployed link : https://telecocustomerchurnprediction.streamlit.app/
