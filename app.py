@@ -8,9 +8,9 @@ from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
 # ----------------------------
 # Load model artifacts
 # ----------------------------
-model = pickle.load(open("models/model.pkl", "rb"))
-scaler = pickle.load(open("models/scaler.pkl", "rb"))
-feature_names = pickle.load(open("models/features.pkl", "rb"))
+model = pickle.load(open("model.pkl", "rb"))
+scaler = pickle.load(open("scaler.pkl", "rb"))
+feature_names = pickle.load(open("features.pkl", "rb"))
 
 st.set_page_config(page_title="Telco Customer Churn", layout="centered")
 
@@ -137,3 +137,4 @@ if st.button("Show ROC Curve & Confusion Matrix"):
     fig_cm.update_layout(title="Confusion Matrix")
 
     st.plotly_chart(fig_cm)
+
